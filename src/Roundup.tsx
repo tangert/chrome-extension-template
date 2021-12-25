@@ -15,6 +15,8 @@ function uuidv4() {
 }
 
 interface Tab {
+  id: string
+  timestamp: string
   index: number
   title: string
   url: string
@@ -32,40 +34,48 @@ interface Session {
 const Wrap = styled.div`
   background: white;
   border: 1px solid black;
-  margin-bottom: 16px;
   padding: 8px;
   border-radius: 8px;
 `
 
 function SessionCard({
   session,
-  onRestore,
-  onUpdate,
-  onDelete,
-  onRename,
+  onRestoreSession,
+  onUpdateSession,
+  onDeleteSession,
+  onRenameSession,
+  onAddCurrentTab,
+  onDeleteTab,
 }: {
   session: Session
-  onRestore: (session: Session) => void
-  onUpdate: (session: Session) => void
-  onDelete: (id: string) => void
-  onRename?: (sessionName: string, session: Session) => void
+  onRestoreSession: (session: Session) => void
+  onUpdateSession: (session: Session) => void
+  onDeleteSession: (id: string) => void
+  onRenameSession?: (sessionName: string, session: Session) => void
+  onAddCurrentTab: (session: Session) => void
+  onDeleteTab: (tab: Tab, session: Session) => void
 }) {
+  // add current tab to session
+
   const [isOpen, setIsOpen] = React.useState(false)
   const [sessionName, setSessionName] = React.useState(session.name)
 
   return (
-    <Wrap onClick={() => setIsOpen(!isOpen)}>
-      <input
-        placeholder="name me"
-        value={sessionName}
-        style={{ width: '100%' }}
-        onChange={(e) => setSessionName(e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        onBlur={() => {
-          console.log('blurring')
-          onRename!(sessionName!, session)
-        }}
-      />
+    <Wrap>
+      <div style={{ display: 'flex' }}>
+        <input
+          placeholder="name me"
+          value={sessionName}
+          style={{ width: '100%' }}
+          onChange={(e) => setSessionName(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={() => {
+            console.log('blurring')
+            onRenameSession!(sessionName!, session)
+          }}
+        />
+        <button onClick={() => setIsOpen(!isOpen)}>expand</button>
+      </div>
       <p style={{ fontSize: '12px', opacity: 0.5 }}>{`${session.timestamp}`}</p>
       <div
         style={{
@@ -74,12 +84,34 @@ function SessionCard({
           justifyContent: 'space-between',
         }}
       >
-        <button onClick={() => onRestore(session)}>restore</button>
-        <button onClick={() => onUpdate(session)}>update</button>
         <button
           onClick={(e) => {
-            e.stopPropagation()
-            onDelete(session.id)
+            // e.stopPropagation()
+            onAddCurrentTab(session)
+          }}
+        >
+          add current link
+        </button>
+        <button
+          onClick={(e) => {
+            // e.stopPropagation()
+            onRestoreSession(session)
+          }}
+        >
+          restore
+        </button>
+        <button
+          onClick={(e) => {
+            // e.stopPropagation()
+            onUpdateSession(session)
+          }}
+        >
+          update
+        </button>
+        <button
+          onClick={(e) => {
+            // e.stopPropagation()
+            onDeleteSession(session.id)
           }}
           style={{ color: 'red' }}
         >
@@ -99,6 +131,14 @@ function SessionCard({
                 >
                   {t.title}
                 </a>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTab(t, session)
+                  }}
+                >
+                  x
+                </button>
               </li>
             )
           })}
@@ -114,9 +154,6 @@ function Roundup() {
     'roundup-sessions',
     [],
   )
-
-  // save open/close state across pages.
-  const [isOpen, setIsOpen] = useChromeStorageLocal('roundup-isOpen', true)
 
   React.useEffect(() => {
     // Example of how to send a message to eventPage.ts.
@@ -158,6 +195,8 @@ function Roundup() {
                 url: t.url,
                 title: t.title,
                 isActive: t.active,
+                id: uuidv4(),
+                timestamp: new Date().toUTCString(),
               }
             }),
           )
@@ -166,6 +205,12 @@ function Roundup() {
         reject(e)
       }
     })
+  }
+
+  async function getCurrentTab() {
+    let queryOptions = { active: true, currentWindow: true }
+    let [tab] = await chrome.tabs.query(queryOptions)
+    return tab
   }
 
   function restoreSession(session: Session) {
@@ -236,47 +281,108 @@ function Roundup() {
     }
   }
 
+  // basically updates all the sessions. but this seems like a lot of excess work.
+  async function addCurrentTab(session: Session) {
+    const currentTab = await getCurrentTab()
+    const t = {
+      id: uuidv4(),
+      timestamp: new Date().toUTCString(),
+      index: currentTab.index,
+      url: currentTab.url,
+      title: currentTab.title,
+      isActive: currentTab.active,
+    } as Tab
+
+    const updatedSession: Session = {
+      id: session.id,
+      name: session.name,
+      timestamp: new Date().toUTCString(),
+      tabs: [...session.tabs, t],
+      window: session.window,
+    }
+
+    const newSessions = sessions.map((s: Session) =>
+      updatedSession.id === s.id ? updatedSession : s,
+    )
+
+    setSessions(() => newSessions)
+  }
+
+  function deleteTab(tab: Tab, session: Session) {
+    const updatedSession: Session = {
+      ...session,
+      timestamp: new Date().toUTCString(),
+      tabs: session.tabs.filter((t) => t.id !== tab.id),
+    }
+    const newSessions = sessions.map((s: Session) =>
+      updatedSession.id === s.id ? updatedSession : s,
+    )
+    setSessions(() => newSessions)
+  }
+
   // sort by last updated
   // typecasting to any makes ts happy lol
-  const sortedSessions = sessions.sort((a: Session, b: Session) => {
-    return (new Date(b.timestamp) as any) - (new Date(a.timestamp) as any)
-  })
+  // const sortedSessions = sessions.sort((a: Session, b: Session) => {
+  //   return (new Date(b.timestamp) as any) - (new Date(a.timestamp) as any)
+  // })
 
-  React.useEffect(() => {
-    window.chrome = chrome
-  }, [])
   // make popup open/close the sidebar
   return (
     <div
       className="roundup-content"
       style={{
-        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        justifyContent: 'start',
+        gap: '8px',
+        padding: '8px',
         width: '100%',
         height: '100%',
       }}
     >
-      <button onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? 'close' : 'open'}
-      </button>
-      <p style={{ fontWeight: 'bold' }}>roundup!</p>
-      <button className="save-session" onClick={() => saveSession(false)}>
-        save new session
-      </button>
-      {sortedSessions.map((session: Session) => {
-        return (
-          <SessionCard
-            key={session.timestamp}
-            session={session}
-            onUpdate={updateSession}
-            onRestore={restoreSession}
-            onDelete={deleteSession}
-            onRename={renameSession}
-          />
-        )
-      })}
+      <h1 style={{ fontWeight: 'bold', margin: 0 }}>roundup!</h1>
+      <button onClick={() => saveSession(false)}>save new session</button>
+      <div style={{ height: 1, width: '100%', background: 'grey' }} />
+      <h2>current</h2>
+      {/* <SessionCard
+        session={sessions[0]}
+        onUpdate={() => updateSession(sessions[0])}
+        onRestore={() => restoreSession(sessions[0])}
+        onDelete={() => deleteSession(sessions[0])}
+        onAddCurrentLink={() => addCurrentLink(sessions[0])}
+      /> */}
+      <div style={{ height: 1, width: '100%', background: 'grey' }} />
+      <h2>all sessions</h2>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          width: '100%',
+        }}
+      >
+        {sessions.map((session: Session) => {
+          return (
+            <SessionCard
+              key={session.timestamp}
+              session={session}
+              onUpdateSession={updateSession}
+              onRestoreSession={restoreSession}
+              onDeleteSession={deleteSession}
+              onRenameSession={renameSession}
+              onAddCurrentTab={addCurrentTab}
+              onDeleteTab={deleteTab}
+            />
+          )
+        })}
+      </div>
       <style>{`
         * {
           box-sizing: border-box;
+        }
+        h1, h2, h3, h4 {
+          margin:
         }
       `}</style>
     </div>

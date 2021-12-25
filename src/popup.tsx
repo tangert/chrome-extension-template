@@ -8,8 +8,8 @@ function Popup() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '500px',
-        width: '280px',
+        height: '800px',
+        width: '300px',
       }}
     >
       {/* <h1>hi</h1> */}
