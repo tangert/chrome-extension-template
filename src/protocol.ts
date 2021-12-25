@@ -26,6 +26,9 @@ interface URL {
     tabGroups: Array<TabGroup>;
   }
   
+
+  type OpCode = 'add' | 'remove' | 'duplicate' | 'merge' | 'delete'
+  
   // a single tab is represented as an array of Window 1 with 1 tab.
   // so [[url]]
   interface SessionOp {

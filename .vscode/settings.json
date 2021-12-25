@@ -8,5 +8,10 @@
             ],
             "url": "http://json.schemastore.org/chrome-manifest"
         }
-    ]
+    ],
+    "editor.formatOnSave": true,
+    "typescript.format.enable": false,
+    "[typescript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
 }
