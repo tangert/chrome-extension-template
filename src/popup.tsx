@@ -1,53 +1,264 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 
-const Popup = () => {
-  const [count, setCount] = useState(0);
-  const [currentURL, setCurrentURL] = useState<string>();
+// import React from "react";
+import { useChromeStorageLocal } from "use-chrome-storage";
 
-  useEffect(() => {
-    chrome.action.setBadgeText({ text: count.toString() });
-  }, [count]);
+// Used this as a base:
+// https://github.com/martellaj/chrome-extension-react-typescript-boilerplate
+// EDIT: NOW THIS: https://github.com/chibat/chrome-extension-typescript-starter
 
-  useEffect(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      setCurrentURL(tabs[0].url);
-    });
-  }, []);
+// utils
+function uuidv4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = (Math.random() * 16) | 0,
+      v = c == "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
-  const changeBackground = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      const tab = tabs[0];
-      if (tab.id) {
-        chrome.tabs.sendMessage(
-          tab.id,
-          {
-            color: "#555555",
-          },
-          (msg) => {
-            console.log("result message:", msg);
-          }
-        );
-      }
-    });
-  };
+
+interface Tab {
+  index: number;
+  title: string;
+  url: string;
+  isActive: boolean;
+}
+
+interface Session {
+  name?: string;
+  id: string;
+  timestamp: string;
+  tabs: Array<Tab>;
+  window: chrome.windows.Window;
+}
+
+function SessionCard({
+  session,
+  onRestore,
+  onUpdate,
+  onDelete,
+  onRename,
+}: {
+  session: Session;
+  onRestore: (session: Session) => void;
+  onUpdate: (session: Session) => void;
+  onDelete: (id: string) => void;
+  onRename?: (sessionName: string, session: Session) => void;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [sessionName, setSessionName] = React.useState(session.name);
 
   return (
-    <>
-      <ul style={{ minWidth: "700px" }}>
-        <li>Current URL: {currentURL}</li>
-        <li>Current Time: {new Date().toLocaleTimeString()}</li>
-      </ul>
-      <button
-        onClick={() => setCount(count + 1)}
-        style={{ marginRight: "5px" }}
+    <div className="session-card" onClick={() => setIsOpen(!isOpen)}>
+      <input
+        placeholder="name me"
+        value={sessionName}
+        style={{ width: "100%" }}
+        onChange={(e) => setSessionName(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onBlur={() => {
+          onRename!(sessionName!, session);
+        }}
+      />
+      <p style={{ fontSize: "12px", opacity: 0.5 }}>{`${session.timestamp}`}</p>
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          justifyContent: "space-between",
+        }}
       >
-        count up
-      </button>
-      <button onClick={changeBackground}>change background</button>
-    </>
+        <button onClick={() => onRestore(session)}>restore</button>
+        <button onClick={() => onUpdate(session)}>update</button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(session.id);
+          }}
+          style={{ color: "red" }}
+        >
+          delete
+        </button>
+      </div>
+      {isOpen && (
+        <ol>
+          {session.tabs.map((t, i) => {
+            return (
+              <li key={i}>
+                <a
+                  style={{ fontWeight: t.isActive ? "bold" : "normal" }}
+                  href={t.url}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {t.title}
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
   );
-};
+}
+
+function Popup() {
+  // TODO: populate with saved / initial state
+  // const [sessions, setSessions] = React.useState<Array<Session>>([]);
+  const [sessions, setSessions, isPersistent, error] = useChromeStorageLocal(
+    "lasso-sessions",
+    []
+  );
+
+  React.useEffect(() => {
+    // Example of how to send a message to eventPage.ts.
+    chrome.runtime.sendMessage({ popupMounted: true });
+  }, []);
+
+  async function saveSession(close?: boolean) {
+    chrome.windows.getCurrent(async function (window) {
+      const activeTabs = (await getActiveTabs()) as Array<Tab>;
+      const newSession: Session = {
+        id: uuidv4(),
+        timestamp: new Date().toUTCString(),
+        tabs: activeTabs,
+        window: window,
+      };
+
+      setSessions((prev: [Session]) => [newSession, ...prev]);
+
+      if (close) {
+        chrome.windows.remove(window.id!);
+      }
+    });
+  }
+
+  // TODO: implement this lol so its decoupled from saving
+  // async function getSessionData() {
+
+  // }
+
+  async function getActiveTabs() {
+    // grab all tabs in current window.
+    const queryOptions = { currentWindow: true };
+    // more predictable: get the current window id?
+    return new Promise(function (resolve, reject) {
+      try {
+        chrome.tabs.query(queryOptions, (tabs) => {
+          resolve(tabs.map((t) => {
+            return {
+              index: t.index,
+              url: t.url,
+              title: t.title,
+              isActive: t.active,
+            };
+          }));
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  function restoreSession(session: Session) {
+    //restores the tabs in a previous session
+    // creates a window and just opens the tabs from the session in that new window
+    const { window } = session;
+    // recreates the dimensions as well
+    chrome.windows.create(
+      {
+        width: window.width,
+        height: window.height,
+        top: window.top,
+        left: window.left,
+      },
+      (window) => {
+        session.tabs.forEach((tab) => {
+          chrome.tabs.create({
+            url: tab.url,
+            windowId: window!.id,
+            active: tab.isActive,
+          });
+        });
+      }
+    );
+  }
+
+  async function updateSession(session: Session) {
+    chrome.windows.getCurrent(async function (window) {
+      const activeTabs = (await getActiveTabs()) as Array<Tab>;
+
+      const updatedSession: Session = {
+        id: session.id,
+        name: session.name,
+        timestamp: new Date().toUTCString(),
+        tabs: activeTabs,
+        window: window,
+      };
+
+      const newSessions = sessions.map((s: Session) =>
+        updatedSession.id === s.id ? updatedSession : s
+      );
+
+      setSessions(() => newSessions);
+    });
+  }
+
+  function renameSession(name: string, session: Session) {
+    const renamed = {
+      ...session,
+      name,
+    };
+
+    const newSessions = sessions.map((s: Session) =>
+      renamed.id === s.id ? renamed : s
+    );
+
+    setSessions(() => newSessions);
+  }
+
+  function deleteSession(id: string) {
+    const r = confirm("Are you sure you want to delete this session?");
+    if (r) {
+      if (sessions.length > 1) {
+        setSessions((prev: [Session]) => prev.filter((s) => s.id !== id));
+      } else {
+        setSessions(() => []);
+      }
+    }
+  }
+
+  // sort by last updated
+  // typecasting to any makes ts happy lol
+  const sortedSessions = sessions.sort((a: Session, b: Session) => {
+    return (new Date(b.timestamp) as any) - (new Date(a.timestamp) as any);
+  });
+
+  return (
+    <div className="lasso-container">
+      <p style={{ fontWeight: "bold" }}>roundup!</p>
+      <button className="save-session" onClick={() => saveSession(false)}>
+        save new session
+      </button>
+      {sortedSessions.map((session: Session) => {
+        return (
+          <SessionCard
+            key={session.timestamp}
+            session={session}
+            onUpdate={updateSession}
+            onRestore={restoreSession}
+            onDelete={deleteSession}
+            onRename={renameSession}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// export default Popup;
+
 
 ReactDOM.render(
   <React.StrictMode>

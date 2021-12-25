@@ -1,7 +1,7 @@
 {
-  "name": "chrome-extension-typescript-starter",
+  "name": "roundup",
   "version": "1.0.0",
-  "description": "chrome-extension-typescript-starter",
+  "description": "save all ur links!",
   "main": "index.js",
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js --watch",
@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react-dom": "^17.0.1",
+    "use-chrome-storage": "^1.0.5"
   },
   "devDependencies": {
     "@types/chrome": "0.0.158",

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
 
-  "name": "Chrome Extension TypeScript Starter",
-  "description": "Chrome Extension, TypeScript, Visual Studio Code",
+  "name": "ROUNDUP",
+  "description": "VERSION CONTROL",
   "version": "1.0",
 
   "options_ui": {
@@ -25,9 +25,7 @@
     "service_worker": "js/background.js"
   },
 
-  "permissions": [
-    "storage"
-  ],
+  "permissions": ["tabs", "history", "storage"],
 
   "host_permissions": [
     "<all_urls>"
