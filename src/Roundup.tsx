@@ -1,6 +1,7 @@
 import React from 'react'
 import styled from 'styled-components'
 import { useChromeStorageLocal } from 'use-chrome-storage'
+import Fuse from 'fuse.js'
 
 // Used this as a base:
 // https://github.com/chibat/chrome-extension-typescript-starter
@@ -24,6 +25,8 @@ interface Tab {
 }
 
 interface Session {
+  origin?: Session
+  isCurrent?: boolean
   name?: string
   id: string
   timestamp: string
@@ -40,18 +43,22 @@ const Wrap = styled.div`
 
 function SessionCard({
   session,
+  onSetCurrentSession,
   onRestoreSession,
   onUpdateSession,
   onDeleteSession,
   onRenameSession,
+  onDuplicateSession,
   onAddCurrentTab,
   onDeleteTab,
 }: {
   session: Session
+  onSetCurrentSession: (session: Session) => void
   onRestoreSession: (session: Session) => void
   onUpdateSession: (session: Session) => void
-  onDeleteSession: (id: string) => void
+  onDeleteSession: (session: Session) => void
   onRenameSession?: (sessionName: string, session: Session) => void
+  onDuplicateSession: (session: Session) => void
   onAddCurrentTab: (session: Session) => void
   onDeleteTab: (tab: Tab, session: Session) => void
 }) {
@@ -76,7 +83,18 @@ function SessionCard({
         />
         <button onClick={() => setIsOpen(!isOpen)}>expand</button>
       </div>
+
+      {/* TODO: link this to original */}
+
       <p style={{ fontSize: '12px', opacity: 0.5 }}>{`${session.timestamp}`}</p>
+      {session.origin ? (
+        <p
+          style={{ fontSize: '12px', opacity: 0.5 }}
+        >{`Origin: ${session.origin.name}`}</p>
+      ) : null}
+      <button onClick={() => onSetCurrentSession(session)}>
+        set as current session
+      </button>
       <div
         style={{
           display: 'flex',
@@ -86,15 +104,13 @@ function SessionCard({
       >
         <button
           onClick={(e) => {
-            // e.stopPropagation()
             onAddCurrentTab(session)
           }}
         >
-          add current link
+          add current tab
         </button>
         <button
           onClick={(e) => {
-            // e.stopPropagation()
             onRestoreSession(session)
           }}
         >
@@ -102,16 +118,22 @@ function SessionCard({
         </button>
         <button
           onClick={(e) => {
-            // e.stopPropagation()
             onUpdateSession(session)
           }}
         >
           update
         </button>
+
         <button
           onClick={(e) => {
-            // e.stopPropagation()
-            onDeleteSession(session.id)
+            onDuplicateSession(session)
+          }}
+        >
+          duplicate
+        </button>
+        <button
+          onClick={(e) => {
+            onDeleteSession(session)
           }}
           style={{ color: 'red' }}
         >
@@ -148,6 +170,15 @@ function SessionCard({
   )
 }
 
+const indexKeys = [
+  'timestamp',
+  'name',
+  'tabs',
+  'tabs.timestamp',
+  'tabs.url',
+  'tabs.title',
+]
+
 function Roundup() {
   // TODO: populate with saved / initial state
   const [sessions, setSessions, isPersistent, error] = useChromeStorageLocal(
@@ -155,10 +186,30 @@ function Roundup() {
     [],
   )
 
+  const [currentSession, setCurrentSession] = useChromeStorageLocal(
+    'roundup-current-session',
+    sessions.length ? 0 : null,
+  )
+
+  const [searchTerm, setSearchTerm] = React.useState('')
+  const [fuse, setFuse] = React.useState(
+    new Fuse(sessions, {
+      keys: indexKeys,
+    }),
+  )
+
   React.useEffect(() => {
     // Example of how to send a message to eventPage.ts.
     chrome.runtime.sendMessage({ popupMounted: true })
   }, [])
+
+  React.useEffect(() => {
+    setFuse(
+      new Fuse(sessions, {
+        keys: indexKeys,
+      }),
+    )
+  }, [sessions])
 
   async function saveSession(close?: boolean) {
     chrome.windows.getCurrent(async function (window) {
@@ -257,6 +308,17 @@ function Roundup() {
     })
   }
 
+  async function duplicateSession(session: Session) {
+    const updatedSession: Session = {
+      ...session,
+      origin: session,
+      id: uuidv4(),
+      timestamp: new Date().toUTCString(),
+    }
+
+    setSessions(() => [...sessions, updatedSession])
+  }
+
   function renameSession(name: string, session: Session) {
     const renamed = {
       ...session,
@@ -270,11 +332,13 @@ function Roundup() {
     setSessions(() => newSessions)
   }
 
-  function deleteSession(id: string) {
+  function deleteSession(session: Session) {
     const r = confirm('Are you sure you want to delete this session?')
     if (r) {
       if (sessions.length > 1) {
-        setSessions((prev: [Session]) => prev.filter((s) => s.id !== id))
+        setSessions((prev: [Session]) =>
+          prev.filter((s) => s.id !== session.id),
+        )
       } else {
         setSessions(() => [])
       }
@@ -326,7 +390,12 @@ function Roundup() {
   //   return (new Date(b.timestamp) as any) - (new Date(a.timestamp) as any)
   // })
 
+  // 3. Now search!
+
   // make popup open/close the sidebar
+  const toRender =
+    searchTerm !== '' ? fuse.search(searchTerm).map((r) => r.item) : sessions
+
   return (
     <div
       className="roundup-content"
@@ -342,16 +411,27 @@ function Roundup() {
       }}
     >
       <h1 style={{ fontWeight: 'bold', margin: 0 }}>roundup!</h1>
+      <input
+        placeholder="search (todo)"
+        onChange={(e) => setSearchTerm(e.target.value)}
+        value={searchTerm}
+      ></input>
       <button onClick={() => saveSession(false)}>save new session</button>
       <div style={{ height: 1, width: '100%', background: 'grey' }} />
       <h2>current</h2>
-      {/* <SessionCard
-        session={sessions[0]}
-        onUpdate={() => updateSession(sessions[0])}
-        onRestore={() => restoreSession(sessions[0])}
-        onDelete={() => deleteSession(sessions[0])}
-        onAddCurrentLink={() => addCurrentLink(sessions[0])}
-      /> */}
+      {currentSession ? (
+        <SessionCard
+          session={currentSession}
+          onUpdateSession={updateSession}
+          onRestoreSession={restoreSession}
+          onDeleteSession={deleteSession}
+          onRenameSession={renameSession}
+          onAddCurrentTab={addCurrentTab}
+          onDeleteTab={deleteTab}
+          onDuplicateSession={duplicateSession}
+          onSetCurrentSession={() => console.log('hi')}
+        />
+      ) : null}
       <div style={{ height: 1, width: '100%', background: 'grey' }} />
       <h2>all sessions</h2>
       <div
@@ -362,7 +442,7 @@ function Roundup() {
           width: '100%',
         }}
       >
-        {sessions.map((session: Session) => {
+        {toRender.map((session: Session) => {
           return (
             <SessionCard
               key={session.timestamp}
@@ -373,6 +453,8 @@ function Roundup() {
               onRenameSession={renameSession}
               onAddCurrentTab={addCurrentTab}
               onDeleteTab={deleteTab}
+              onDuplicateSession={duplicateSession}
+              onSetCurrentSession={() => setCurrentSession(session)}
             />
           )
         })}
