@@ -2,13 +2,17 @@ import React from "react";
 import styled from "styled-components";
 import { useChromeStorageLocal } from "use-chrome-storage";
 import Fuse from "fuse.js";
-import { GET_ALL_CURRENT_WINDOW_TABS, RESTORE_SESSION } from "./background";
+import {
+  GET_ALL_CURRENT_WINDOW_TABS,
+  GET_CURRENT_TAB,
+  RESTORE_SESSION,
+} from "./background";
 
 // Used this as a base:
 // https://github.com/chibat/chrome-extension-typescript-starter
 
 // utils
-function uuidv4() {
+export function uuidv4() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
     var r = (Math.random() * 16) | 0,
       v = c == "x" ? r : (r & 0x3) | 0x8;
@@ -16,7 +20,7 @@ function uuidv4() {
   });
 }
 
-interface Tab {
+export interface LassoTab {
   id: string;
   timestamp: string;
   index: number;
@@ -31,7 +35,7 @@ export interface LassoSession {
   name?: string;
   id: string;
   timestamp: string;
-  tabs: Array<Tab>;
+  tabs: Array<LassoTab>;
   window: chrome.windows.Window;
 }
 
@@ -61,7 +65,7 @@ function SessionCard({
   onRenameSession?: (sessionName: string, session: LassoSession) => void;
   onDuplicateSession: (session: LassoSession) => void;
   onAddCurrentTab: (session: LassoSession) => void;
-  onDeleteTab: (tab: Tab, session: LassoSession) => void;
+  onDeleteTab: (tab: LassoTab, session: LassoSession) => void;
 }) {
   // add current tab to session
 
@@ -117,13 +121,13 @@ function SessionCard({
         >
           restore
         </button>
-        <button
+        {/* <button
           onClick={(e) => {
             onUpdateSession(session);
           }}
         >
           update
-        </button>
+        </button> */}
 
         <button
           onClick={(e) => {
@@ -192,23 +196,14 @@ export default function App() {
     sessions.length ? 0 : null
   );
 
+  const [isOpen, setIsOpen] = useChromeStorageLocal("lasso-is-open", true);
+
   const [searchTerm, setSearchTerm] = React.useState("");
   const [fuse, setFuse] = React.useState(
     new Fuse(sessions, {
       keys: indexKeys,
     })
   );
-
-  React.useEffect(() => {
-    // Example of how to send a message to eventPage.ts.
-    chrome.runtime.sendMessage({ popupMounted: true });
-    chrome.runtime.sendMessage(
-      { msg: GET_ALL_CURRENT_WINDOW_TABS },
-      (response) => {
-        console.log(response);
-      }
-    );
-  }, []);
 
   React.useEffect(() => {
     setFuse(
@@ -218,7 +213,7 @@ export default function App() {
     );
   }, [sessions]);
 
-  async function saveSession(close?: boolean) {
+  async function saveSession() {
     chrome.runtime.sendMessage(
       { msg: GET_ALL_CURRENT_WINDOW_TABS },
       ({ tabs, window }) => {
@@ -229,9 +224,6 @@ export default function App() {
           window: window,
         };
         setSessions((prev: [LassoSession]) => [newSession, ...prev]);
-        if (close) {
-          chrome.windows.remove(window.id!);
-        }
       }
     );
   }
@@ -268,7 +260,7 @@ export default function App() {
 
   async function updateSession(session: LassoSession) {
     chrome.windows.getCurrent(async function (window) {
-      const activeTabs = (await getActiveTabs()) as Array<Tab>;
+      const activeTabs = (await getActiveTabs()) as Array<LassoTab>;
 
       const updatedSession: LassoSession = {
         id: session.id,
@@ -325,32 +317,36 @@ export default function App() {
 
   // basically updates all the sessions. but this seems like a lot of excess work.
   async function addCurrentTab(session: LassoSession) {
-    const currentTab = await getCurrentTab();
-    const t = {
-      id: uuidv4(),
-      timestamp: new Date().toUTCString(),
-      index: currentTab.index,
-      url: currentTab.url,
-      title: currentTab.title,
-      isActive: currentTab.active,
-    } as Tab;
+    chrome.runtime.sendMessage(
+      { msg: GET_CURRENT_TAB },
+      ({ data: currentTab }) => {
+        const t = {
+          id: uuidv4(),
+          timestamp: new Date().toUTCString(),
+          index: currentTab.index,
+          url: currentTab.url,
+          title: currentTab.title,
+          isActive: currentTab.active,
+        } as LassoTab;
 
-    const updatedSession: LassoSession = {
-      id: session.id,
-      name: session.name,
-      timestamp: new Date().toUTCString(),
-      tabs: [...session.tabs, t],
-      window: session.window,
-    };
+        const updatedSession: LassoSession = {
+          id: session.id,
+          name: session.name,
+          timestamp: new Date().toUTCString(),
+          tabs: [...session.tabs, t],
+          window: session.window,
+        };
 
-    const newSessions = sessions.map((s: LassoSession) =>
-      updatedSession.id === s.id ? updatedSession : s
+        const newSessions = sessions.map((s: LassoSession) =>
+          updatedSession.id === s.id ? updatedSession : s
+        );
+
+        setSessions(newSessions);
+      }
     );
-
-    setSessions(() => newSessions);
   }
 
-  function deleteTab(tab: Tab, session: LassoSession) {
+  function deleteTab(tab: LassoTab, session: LassoSession) {
     const updatedSession: LassoSession = {
       ...session,
       timestamp: new Date().toUTCString(),
@@ -378,6 +374,9 @@ export default function App() {
     <div
       className="lasso-content"
       style={{
+        position: "absolute",
+        top: 0,
+        right: isOpen ? 0 : -280,
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
@@ -386,16 +385,31 @@ export default function App() {
         padding: "8px",
         width: "100%",
         height: "100%",
-        background: "red",
+        background: "white",
+        borderLeft: "1px solid lightgrey",
+        overflowY: "scroll",
+        transition: "right 0.1s ease-in-out",
       }}
     >
-      <h1 style={{ fontWeight: "bold", margin: 0 }}>lasso</h1>
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
+        <button onClick={() => setIsOpen(!isOpen)}>
+          {isOpen ? ">>" : "<<"}
+        </button>
+        <h1 style={{ fontWeight: "bold", margin: 0 }}>lasso</h1>
+      </div>
       <input
         placeholder="search (todo)"
         onChange={(e) => setSearchTerm(e.target.value)}
         value={searchTerm}
       ></input>
-      <button onClick={() => saveSession(false)}>save new session</button>
+      <button onClick={() => saveSession()}>save new session</button>
       <div style={{ height: 1, width: "100%", background: "grey" }} />
       <h2>current</h2>
       {currentSession ? (

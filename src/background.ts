@@ -2,13 +2,13 @@ export const GET_ALL_CURRENT_WINDOW_TABS = "GET_ALL_CURRENT_WINDOW_TABS";
 export const GET_CURRENT_TAB = "GET_CURRENT_TAB";
 export const RESTORE_SESSION = "RESTORE_SESSION";
 
-import { LassoSession } from "./App";
+import { LassoSession, LassoTab, uuidv4 } from "./App";
 
 async function getCurrentTab() {
   let queryOptions = { active: true, lastFocusedWindow: true };
   // `tab` will either be a `tabs.Tab` instance or `undefined`.
   let [tab] = await chrome.tabs.query(queryOptions);
-  return tab;
+  return { data: tab };
 }
 
 async function getAllCurrentWindowTabs() {
