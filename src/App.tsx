@@ -1,5 +1,5 @@
 import React from "react";
-import styled, { withTheme } from "styled-components";
+import styled from "styled-components";
 import { useChromeStorageLocal } from "use-chrome-storage";
 import Fuse from "fuse.js";
 
@@ -179,6 +179,8 @@ const indexKeys = [
   "tabs.title",
 ];
 
+export const GET_CURRENT_WINDOW_TABS = "GET_CURRENT_WINDOW_TABS";
+
 export default function App() {
   // TODO: populate with saved / initial state
   const [sessions, setSessions, isPersistent, error] = useChromeStorageLocal(
@@ -201,6 +203,9 @@ export default function App() {
   React.useEffect(() => {
     // Example of how to send a message to eventPage.ts.
     chrome.runtime.sendMessage({ popupMounted: true });
+    chrome.runtime.sendMessage({ msg: GET_CURRENT_WINDOW_TABS }, (response) => {
+      console.log(response);
+    });
   }, []);
 
   React.useEffect(() => {
@@ -212,6 +217,10 @@ export default function App() {
   }, [sessions]);
 
   async function saveSession(close?: boolean) {
+    chrome.runtime.sendMessage("hello", (resp) => {
+      console.log(resp);
+    });
+
     chrome.windows.getCurrent(async function (window) {
       const activeTabs = (await getActiveTabs()) as Array<Tab>;
       const newSession: Session = {

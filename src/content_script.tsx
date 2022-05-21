@@ -9,10 +9,12 @@ function htmlToElement(html: string) {
   return template.content.firstChild;
 }
 
+const CONTAINER_ID = "lasso--container";
+
 document.body.appendChild(
   htmlToElement(
-    `<div id="lasso--container" style="position:fixed;height:100%;top:0;right:0;width:320px;z-index:9999;"></div>`
+    `<div id="${CONTAINER_ID}" style="position:fixed;height:100%;top:0;right:0;width:320px;z-index:9999;"></div>`
   ) as Node
 );
 
-ReactDOM.render(<App />, document.getElementById("lasso--container"));
+ReactDOM.render(<App />, document.getElementById(CONTAINER_ID));

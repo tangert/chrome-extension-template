@@ -20,8 +20,8 @@
   "background": {
     "service_worker": "js/background.js"
   },
-
-  "permissions": ["activeTab", "tabs", "bookmarks", "history", "storage", "<all_urls>"],
+  "optional_permissions": ["tabs"],
+  "permissions": [ "activeTab", "bookmarks", "history", "storage", "scripting", "<all_urls>"],
 
   "host_permissions": [
     "<all_urls>"
