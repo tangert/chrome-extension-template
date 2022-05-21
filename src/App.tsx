@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { useChromeStorageLocal } from "use-chrome-storage";
 import Fuse from "fuse.js";
+import { GET_ALL_CURRENT_WINDOW_TABS, RESTORE_SESSION } from "./background";
 
 // Used this as a base:
 // https://github.com/chibat/chrome-extension-typescript-starter
@@ -24,8 +25,8 @@ interface Tab {
   isActive: boolean;
 }
 
-interface Session {
-  origin?: Session;
+export interface LassoSession {
+  origin?: LassoSession;
   isCurrent?: boolean;
   name?: string;
   id: string;
@@ -52,15 +53,15 @@ function SessionCard({
   onAddCurrentTab,
   onDeleteTab,
 }: {
-  session: Session;
-  onSetCurrentSession: (session: Session) => void;
-  onRestoreSession: (session: Session) => void;
-  onUpdateSession: (session: Session) => void;
-  onDeleteSession: (session: Session) => void;
-  onRenameSession?: (sessionName: string, session: Session) => void;
-  onDuplicateSession: (session: Session) => void;
-  onAddCurrentTab: (session: Session) => void;
-  onDeleteTab: (tab: Tab, session: Session) => void;
+  session: LassoSession;
+  onSetCurrentSession: (session: LassoSession) => void;
+  onRestoreSession: (session: LassoSession) => void;
+  onUpdateSession: (session: LassoSession) => void;
+  onDeleteSession: (session: LassoSession) => void;
+  onRenameSession?: (sessionName: string, session: LassoSession) => void;
+  onDuplicateSession: (session: LassoSession) => void;
+  onAddCurrentTab: (session: LassoSession) => void;
+  onDeleteTab: (tab: Tab, session: LassoSession) => void;
 }) {
   // add current tab to session
 
@@ -179,8 +180,6 @@ const indexKeys = [
   "tabs.title",
 ];
 
-export const GET_CURRENT_WINDOW_TABS = "GET_CURRENT_WINDOW_TABS";
-
 export default function App() {
   // TODO: populate with saved / initial state
   const [sessions, setSessions, isPersistent, error] = useChromeStorageLocal(
@@ -203,9 +202,12 @@ export default function App() {
   React.useEffect(() => {
     // Example of how to send a message to eventPage.ts.
     chrome.runtime.sendMessage({ popupMounted: true });
-    chrome.runtime.sendMessage({ msg: GET_CURRENT_WINDOW_TABS }, (response) => {
-      console.log(response);
-    });
+    chrome.runtime.sendMessage(
+      { msg: GET_ALL_CURRENT_WINDOW_TABS },
+      (response) => {
+        console.log(response);
+      }
+    );
   }, []);
 
   React.useEffect(() => {
@@ -217,29 +219,22 @@ export default function App() {
   }, [sessions]);
 
   async function saveSession(close?: boolean) {
-    chrome.runtime.sendMessage("hello", (resp) => {
-      console.log(resp);
-    });
-
-    chrome.windows.getCurrent(async function (window) {
-      const activeTabs = (await getActiveTabs()) as Array<Tab>;
-      const newSession: Session = {
-        id: uuidv4(),
-        timestamp: new Date().toUTCString(),
-        tabs: activeTabs,
-        window: window,
-      };
-      setSessions((prev: [Session]) => [newSession, ...prev]);
-      if (close) {
-        chrome.windows.remove(window.id!);
+    chrome.runtime.sendMessage(
+      { msg: GET_ALL_CURRENT_WINDOW_TABS },
+      ({ tabs, window }) => {
+        const newSession: LassoSession = {
+          id: uuidv4(),
+          timestamp: new Date().toUTCString(),
+          tabs: tabs,
+          window: window,
+        };
+        setSessions((prev: [LassoSession]) => [newSession, ...prev]);
+        if (close) {
+          chrome.windows.remove(window.id!);
+        }
       }
-    });
+    );
   }
-
-  // TODO: implement this lol so its decoupled from saving
-  // async function getSessionData() {
-
-  // }
 
   async function getActiveTabs() {
     // grab all tabs in current window.
@@ -267,41 +262,15 @@ export default function App() {
     });
   }
 
-  async function getCurrentTab() {
-    let queryOptions = { active: true, currentWindow: true };
-    let [tab] = await chrome.tabs.query(queryOptions);
-    return tab;
+  function restoreSession(session: LassoSession) {
+    chrome.runtime.sendMessage({ msg: RESTORE_SESSION, data: { session } });
   }
 
-  function restoreSession(session: Session) {
-    //restores the tabs in a previous session
-    // creates a window and just opens the tabs from the session in that new window
-    const { window } = session;
-    // recreates the dimensions as well
-    chrome.windows.create(
-      {
-        width: window.width,
-        height: window.height,
-        top: window.top,
-        left: window.left,
-      },
-      (window) => {
-        session.tabs.forEach((tab) => {
-          chrome.tabs.create({
-            url: tab.url,
-            windowId: window!.id,
-            active: tab.isActive,
-          });
-        });
-      }
-    );
-  }
-
-  async function updateSession(session: Session) {
+  async function updateSession(session: LassoSession) {
     chrome.windows.getCurrent(async function (window) {
       const activeTabs = (await getActiveTabs()) as Array<Tab>;
 
-      const updatedSession: Session = {
+      const updatedSession: LassoSession = {
         id: session.id,
         name: session.name,
         timestamp: new Date().toUTCString(),
@@ -309,7 +278,7 @@ export default function App() {
         window: window,
       };
 
-      const newSessions = sessions.map((s: Session) =>
+      const newSessions = sessions.map((s: LassoSession) =>
         updatedSession.id === s.id ? updatedSession : s
       );
 
@@ -317,8 +286,8 @@ export default function App() {
     });
   }
 
-  async function duplicateSession(session: Session) {
-    const updatedSession: Session = {
+  async function duplicateSession(session: LassoSession) {
+    const updatedSession: LassoSession = {
       ...session,
       origin: session,
       id: uuidv4(),
@@ -328,24 +297,24 @@ export default function App() {
     setSessions(() => [...sessions, updatedSession]);
   }
 
-  function renameSession(name: string, session: Session) {
+  function renameSession(name: string, session: LassoSession) {
     const renamed = {
       ...session,
       name,
     };
 
-    const newSessions = sessions.map((s: Session) =>
+    const newSessions = sessions.map((s: LassoSession) =>
       renamed.id === s.id ? renamed : s
     );
 
     setSessions(() => newSessions);
   }
 
-  function deleteSession(session: Session) {
+  function deleteSession(session: LassoSession) {
     const r = confirm("Are you sure you want to delete this session?");
     if (r) {
       if (sessions.length > 1) {
-        setSessions((prev: [Session]) =>
+        setSessions((prev: [LassoSession]) =>
           prev.filter((s) => s.id !== session.id)
         );
       } else {
@@ -355,7 +324,7 @@ export default function App() {
   }
 
   // basically updates all the sessions. but this seems like a lot of excess work.
-  async function addCurrentTab(session: Session) {
+  async function addCurrentTab(session: LassoSession) {
     const currentTab = await getCurrentTab();
     const t = {
       id: uuidv4(),
@@ -366,7 +335,7 @@ export default function App() {
       isActive: currentTab.active,
     } as Tab;
 
-    const updatedSession: Session = {
+    const updatedSession: LassoSession = {
       id: session.id,
       name: session.name,
       timestamp: new Date().toUTCString(),
@@ -374,20 +343,20 @@ export default function App() {
       window: session.window,
     };
 
-    const newSessions = sessions.map((s: Session) =>
+    const newSessions = sessions.map((s: LassoSession) =>
       updatedSession.id === s.id ? updatedSession : s
     );
 
     setSessions(() => newSessions);
   }
 
-  function deleteTab(tab: Tab, session: Session) {
-    const updatedSession: Session = {
+  function deleteTab(tab: Tab, session: LassoSession) {
+    const updatedSession: LassoSession = {
       ...session,
       timestamp: new Date().toUTCString(),
       tabs: session.tabs.filter((t) => t.id !== tab.id),
     };
-    const newSessions = sessions.map((s: Session) =>
+    const newSessions = sessions.map((s: LassoSession) =>
       updatedSession.id === s.id ? updatedSession : s
     );
     setSessions(() => newSessions);
@@ -452,7 +421,7 @@ export default function App() {
           width: "100%",
         }}
       >
-        {toRender.map((session: Session) => {
+        {toRender.map((session: LassoSession) => {
           return (
             <SessionCard
               key={session.timestamp}
