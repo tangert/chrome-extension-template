@@ -1,7 +1,7 @@
 {
-  "name": "roundup",
+  "name": "lasso",
   "version": "1.0.0",
-  "description": "save all ur links!",
+  "description": "lasso em up",
   "main": "index.js",
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js --watch",

@@ -1,18 +1,18 @@
-import React from 'react'
-import ReactDOM from 'react-dom'
-import Roundup from './Roundup'
+import React from "react";
+import ReactDOM from "react-dom";
+import App from "./App";
 
-// function htmlToElement(html: string) {
-//   const template = document.createElement('template')
-//   html = html.trim()
-//   template.innerHTML = html
-//   return template.content.firstChild
-// }
+function htmlToElement(html: string) {
+  const template = document.createElement("template");
+  html = html.trim();
+  template.innerHTML = html;
+  return template.content.firstChild;
+}
 
-// document.body.appendChild(
-//   htmlToElement(
-//     `<div id="roundup--container" style="position:fixed;height:100%;top:0;right:0;width:300px;background:blue;z-index:9999;"></div>`,
-//   ) as Node,
-// )
+document.body.appendChild(
+  htmlToElement(
+    `<div id="lasso--container" style="position:fixed;height:100%;top:0;right:0;width:320px;z-index:9999;"></div>`
+  ) as Node
+);
 
-// ReactDOM.render(<Roundup />, document.getElementById('roundup--container'))
+ReactDOM.render(<App />, document.getElementById("lasso--container"));
