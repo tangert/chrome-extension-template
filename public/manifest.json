@@ -1,28 +1,26 @@
 {
   "manifest_version": 3,
-
-  "name": "Lasso",
-  "description": "Track your path",
+  "name": "Berryspace",
+  "description": "Pick berries",
   "version": "0.1",
-
-  "action": {
-    "default_icon": {"16": "icon.png"},
-    "default_popup": "popup.html"
-  },
-
+  "action": {},
   "content_scripts": [
       {
           "matches": ["<all_urls>"],
           "js": ["js/vendor.js", "js/content_script.js"]
       }
   ],
-
   "background": {
-    "service_worker": "js/background.js"
+    "service_worker": "js/background.js",
+    "persistent": true
   },
   "optional_permissions": ["tabs"],
-  "permissions": [ "activeTab", "bookmarks", "history", "storage", "scripting", "<all_urls>"],
-
+  "permissions": [ "activeTab", "bookmarks", "history", "storage", "scripting", "chrome://favicon/"],
+  "web_accessible_resources": [{
+    "resources": ["*.jpg", "*.png"],
+    "matches": ["<all_urls>"],
+    "use_dynamic_url": true
+  }],
   "host_permissions": [
     "<all_urls>"
   ]

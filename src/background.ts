@@ -1,8 +1,12 @@
 export const GET_ALL_CURRENT_WINDOW_TABS = "GET_ALL_CURRENT_WINDOW_TABS";
 export const GET_CURRENT_TAB = "GET_CURRENT_TAB";
 export const RESTORE_SESSION = "RESTORE_SESSION";
+export const GET_IMAGE = "GET_IMAGE";
 
-import { LassoSession, LassoTab, uuidv4 } from "./App";
+// "action": {
+//   "default_icon": {"16": "icon.png"},
+//   "default_title": "Click to show an alert"
+// },
 
 async function getCurrentTab() {
   let queryOptions = { active: true, lastFocusedWindow: true };
@@ -37,47 +41,32 @@ async function getAllCurrentWindowTabs() {
   });
 }
 
-function restoreSession(session: LassoSession) {
-  //restores the tabs in a previous session
-  // creates a window and just opens the tabs from the session in that new window
-  const { window } = session;
-
-  chrome.windows.create(
-    {
-      width: window.width,
-      height: window.height,
-      top: window.top,
-      left: window.left,
-    },
-    (window) => {
-      session.tabs.forEach((tab) => {
-        chrome.tabs.create({
-          url: tab.url,
-          windowId: window!.id,
-          active: tab.isActive,
-        });
-      });
-    }
-  );
-}
-
 // will take any async function you have and send the response over
 async function sendAsyncResponse(
   asyncFunc: () => Promise<any>,
-  sendResponse: (a: any) => void
+  sendResponse: (a: any) => any
 ) {
   const res = await asyncFunc();
   sendResponse(res);
 }
+
+// chrome.action.onClicked.addListener(() => {
+//   console.log("HI!!!");
+// });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.msg === GET_ALL_CURRENT_WINDOW_TABS) {
     sendAsyncResponse(getAllCurrentWindowTabs, sendResponse);
   } else if (message.msg === GET_CURRENT_TAB) {
     sendAsyncResponse(getCurrentTab, sendResponse);
-  } else if (message.msg === RESTORE_SESSION) {
-    restoreSession(message.data.session);
+  } else if (message.msg === GET_IMAGE) {
+    const url = chrome.runtime.getURL(`images/${message.image}`);
+    sendResponse({
+      url,
+    });
   }
   // have to return true to keep the port open
   return true;
 });
+
+// console.log(chrome.runtime.getURL("assets/map.png"));

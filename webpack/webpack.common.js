@@ -5,7 +5,6 @@ const srcDir = path.join(__dirname, "..", "src");
 
 module.exports = {
     entry: {
-      popup: path.join(srcDir, 'popup.tsx'),
       background: path.join(srcDir, 'background.ts'),
       content_script: path.join(srcDir, 'content_script.tsx'),
     },
@@ -28,6 +27,21 @@ module.exports = {
                 use: "ts-loader",
                 exclude: /node_modules/,
             },
+            {
+                test: /\.(sa|sc|c)ss$/,
+                use: ["style-loader", "css-loader", "sass-loader",    {
+                    loader: 'postcss-loader',
+                    options: {
+                      postcssOptions: {
+                        ident: 'postcss',
+                        plugins: [
+                          require('tailwindcss'),
+                          require('autoprefixer'),
+                        ],
+                      },
+                    }
+                  }]
+            }
         ],
     },
     resolve: {

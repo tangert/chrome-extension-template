@@ -1,7 +1,7 @@
 {
-  "name": "lasso",
+  "name": "berryspace",
   "version": "1.0.0",
-  "description": "lasso em up",
+  "description": "picking berries",
   "main": "index.js",
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js --watch",
@@ -17,12 +17,16 @@
     "url": "https://github.com/chibat/chrome-extension-typescript-starter.git"
   },
   "dependencies": {
-    "autoprefixer": "^10.4.0",
+    "autoprefixer": "^10.4.7",
     "fuse.js": "^6.5.3",
     "postcss": "^8.4.5",
+    "postcss-loader": "^7.0.0",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
+    "react-feather": "^2.0.10",
+    "react-map-interaction": "^2.1.0",
     "styled-components": "^5.3.3",
+    "tailwindcss": "^1.9.6",
     "use-chrome-storage": "^1.0.5"
   },
   "devDependencies": {
@@ -32,10 +36,14 @@
     "@types/react-dom": "^17.0.0",
     "@types/styled-components": "^5.1.19",
     "copy-webpack-plugin": "^9.0.1",
+    "css-loader": "^6.7.1",
     "glob": "^7.1.6",
     "jest": "^27.2.1",
     "prettier": "^2.2.1",
     "rimraf": "^3.0.2 ",
+    "sass": "^1.53.0",
+    "sass-loader": "^13.0.2",
+    "style-loader": "^3.3.1",
     "ts-jest": "^27.0.5",
     "ts-loader": "^8.0.0",
     "typescript": "^4.4.3 ",
