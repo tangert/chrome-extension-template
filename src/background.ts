@@ -3,15 +3,10 @@ export const GET_CURRENT_TAB = "GET_CURRENT_TAB";
 export const RESTORE_SESSION = "RESTORE_SESSION";
 export const GET_IMAGE = "GET_IMAGE";
 
-// "action": {
-//   "default_icon": {"16": "icon.png"},
-//   "default_title": "Click to show an alert"
-// },
-
 async function getCurrentTab() {
-  let queryOptions = { active: true, lastFocusedWindow: true };
+  const queryOptions = { active: true, lastFocusedWindow: true };
   // `tab` will either be a `tabs.Tab` instance or `undefined`.
-  let [tab] = await chrome.tabs.query(queryOptions);
+  const [tab] = await chrome.tabs.query(queryOptions);
   return { data: tab };
 }
 

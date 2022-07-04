@@ -1,7 +1,7 @@
 {
-  "name": "berryspace",
+  "name": "Chrome Extension Starter",
   "version": "1.0.0",
-  "description": "picking berries",
+  "description": "Chrome Extension Starter",
   "main": "index.js",
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js --watch",
@@ -24,7 +24,6 @@
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-feather": "^2.0.10",
-    "react-map-interaction": "^2.1.0",
     "styled-components": "^5.3.3",
     "tailwindcss": "^1.9.6",
     "use-chrome-storage": "^1.0.5"

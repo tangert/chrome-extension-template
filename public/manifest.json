@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Berryspace",
-  "description": "Pick berries",
+  "name": "Chrome Extension Starter",
+  "description": "Chrome Extension Starter",
   "version": "0.1",
-  "action": {},
+  "action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
       {
           "matches": ["<all_urls>"],
@@ -11,11 +14,10 @@
       }
   ],
   "background": {
-    "service_worker": "js/background.js",
-    "persistent": true
+    "service_worker": "js/background.js"
   },
   "optional_permissions": ["tabs"],
-  "permissions": [ "activeTab", "bookmarks", "history", "storage", "scripting", "chrome://favicon/"],
+  "permissions": [ "activeTab", "bookmarks", "history", "storage", "scripting"],
   "web_accessible_resources": [{
     "resources": ["*.jpg", "*.png"],
     "matches": ["<all_urls>"],
