@@ -1,12 +1,14 @@
-export const GET_ALL_CURRENT_WINDOW_TABS = "GET_ALL_CURRENT_WINDOW_TABS";
-export const GET_CURRENT_TAB = "GET_CURRENT_TAB";
-export const RESTORE_SESSION = "RESTORE_SESSION";
+export const GET_ALL_ACTIVE_WINDOW_TABS = "GET_ALL_ACTIVE_WINDOW_TABS";
+export const GET_ACTIVE_TAB = "GET_ACTIVE_TAB";
+export const GET_ALL_TABS = "GET_ALL_TABS";
+export const RESTORE_SPACE = "RESTORE_SPACE";
 export const GET_IMAGE = "GET_IMAGE";
 
-async function getCurrentTab() {
+async function getActiveTab() {
   const queryOptions = { active: true, lastFocusedWindow: true };
   // `tab` will either be a `tabs.Tab` instance or `undefined`.
   const [tab] = await chrome.tabs.query(queryOptions);
+  console.log(tab);
   return { data: tab };
 }
 
@@ -50,10 +52,10 @@ async function sendAsyncResponse(
 // });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.msg === GET_ALL_CURRENT_WINDOW_TABS) {
+  if (message.msg === GET_ALL_ACTIVE_WINDOW_TABS) {
     sendAsyncResponse(getAllCurrentWindowTabs, sendResponse);
-  } else if (message.msg === GET_CURRENT_TAB) {
-    sendAsyncResponse(getCurrentTab, sendResponse);
+  } else if (message.msg === GET_ACTIVE_TAB) {
+    sendAsyncResponse(getActiveTab, sendResponse);
   } else if (message.msg === GET_IMAGE) {
     const url = chrome.runtime.getURL(`images/${message.image}`);
     sendResponse({

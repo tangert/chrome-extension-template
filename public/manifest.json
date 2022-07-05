@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Extension Starter",
-  "description": "Chrome Extension Starter",
+  "name": "Git Browsing",
+  "description": "Git Browsing",
   "version": "0.1",
   "action": {
     "default_icon": "icon.png",
@@ -16,8 +16,7 @@
   "background": {
     "service_worker": "js/background.js"
   },
-  "optional_permissions": ["tabs"],
-  "permissions": [ "activeTab", "bookmarks", "history", "storage", "scripting"],
+  "permissions": [ "activeTab", "tabs", "bookmarks", "history", "storage", "scripting"],
   "web_accessible_resources": [{
     "resources": ["*.jpg", "*.png"],
     "matches": ["<all_urls>"],
