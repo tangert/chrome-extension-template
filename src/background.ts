@@ -8,8 +8,24 @@ async function getActiveTab() {
   const queryOptions = { active: true, lastFocusedWindow: true };
   // `tab` will either be a `tabs.Tab` instance or `undefined`.
   const [tab] = await chrome.tabs.query(queryOptions);
-  console.log(tab);
   return { data: tab };
+}
+
+async function getAllTabs() {
+  return new Promise(function (resolve, reject) {
+    try {
+      chrome.windows.getAll({ populate: true }, (windows) => {
+        resolve({
+          tabs: windows.flatMap((w) => {
+            return w.tabs;
+          }),
+          windows,
+        });
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
 }
 
 async function getAllCurrentWindowTabs() {
@@ -61,9 +77,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({
       url,
     });
+  } else if (message.msg === GET_ALL_TABS) {
+    sendAsyncResponse(getAllTabs, sendResponse);
   }
   // have to return true to keep the port open
   return true;
 });
-
-// console.log(chrome.runtime.getURL("assets/map.png"));

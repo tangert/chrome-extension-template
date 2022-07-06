@@ -117,7 +117,7 @@ export default function App() {
     } catch (e) {
       console.log(e);
     }
-
+    // TODO: tabs permissions arent working lol
     // LINK OPS
     // save link.active space.active
     // save a link to a space
@@ -129,17 +129,10 @@ export default function App() {
       if (linkFilter === "active") {
         // grab the active link
         linkToAdd = await getActiveTab();
-        // @ts-ignore
-        getActiveTab().then(({ data }) => {
-          console.log(data);
-        });
       } else if (linkFilter === "window") {
         linkToAdd = await getAllActiveWindowTabs();
-        // @ts-ignore
-        getAllActiveWindowTabs().then(({ data }) => {
-          console.log(data);
-        });
       } else if (linkFilter === "all") {
+        linkToAdd = await getAllTabs();
       }
 
       console.log(linkToAdd);
