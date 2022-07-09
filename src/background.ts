@@ -72,13 +72,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendAsyncResponse(getAllCurrentWindowTabs, sendResponse);
   } else if (message.msg === GET_ACTIVE_TAB) {
     sendAsyncResponse(getActiveTab, sendResponse);
+  } else if (message.msg === GET_ALL_TABS) {
+    sendAsyncResponse(getAllTabs, sendResponse);
   } else if (message.msg === GET_IMAGE) {
     const url = chrome.runtime.getURL(`images/${message.image}`);
     sendResponse({
       url,
     });
-  } else if (message.msg === GET_ALL_TABS) {
-    sendAsyncResponse(getAllTabs, sendResponse);
   }
   // have to return true to keep the port open
   return true;
